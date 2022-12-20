@@ -18,7 +18,6 @@ use sui_open_rpc::Module;
 use sui_types::balance::Supply;
 use sui_types::base_types::{ObjectID, ObjectType, SuiAddress};
 use sui_types::coin::{Coin, CoinMetadata, LockedCoin, TreasuryCap};
-use sui_types::committee::EpochId;
 use sui_types::error::SuiError;
 use sui_types::event::Event;
 use sui_types::gas_coin::GAS;
@@ -94,18 +93,8 @@ impl CoinReadApi {
         coins.truncate(limit);
 
         let mut data = vec![];
-
         for coin in coins {
-            let (type_, oref, coin) = self.get_coin(&coin).await?;
-            // We have checked these are coin objects, safe to unwrap.
-            let coin_type = type_.type_params.first().unwrap().to_string();
-            data.push(SuiCoin {
-                coin_type,
-                coin_object_id: oref.0,
-                version: oref.1,
-                digest: oref.2,
-                balance: coin.balance.value(),
-            })
+            data.push(self.get_coin(&coin).await?)
         }
         Ok(CoinPage { data, next_cursor })
     }
@@ -198,11 +187,16 @@ impl CoinReadApiServer for CoinReadApi {
         // TODO: Add index to improve performance?
         let coins = self.get_owner_coin_iterator(owner, &coin_type)?;
         let mut total_balance = 0u128;
+        let mut locked_balance = HashMap::new();
         let mut coin_object_count = 0;
 
         for coin in coins {
-            let (_, _, coin) = self.get_coin(&coin).await?;
-            total_balance += coin.balance.value() as u128;
+            let coin = self.get_coin(&coin).await?;
+            if let Some(lock) = coin.locked_until_epoch {
+                *locked_balance.entry(lock).or_default() += coin.balance as u128
+            } else {
+                total_balance += coin.balance as u128;
+            }
             coin_object_count += 1;
         }
 
@@ -210,34 +204,32 @@ impl CoinReadApiServer for CoinReadApi {
             coin_type: coin_type.unwrap(),
             coin_object_count,
             total_balance,
+            locked_balance,
         })
     }
 
     async fn get_all_balances(&self, owner: SuiAddress) -> RpcResult<Vec<Balance>> {
         // TODO: Add index to improve performance?
         let coins = self.get_owner_coin_iterator(owner, &None)?;
-        let mut data: HashMap<(String, Option<EpochId>), (u128, usize)> = HashMap::new();
+        let mut balances: HashMap<String, Balance> = HashMap::new();
 
         for coin in coins {
             let coin = self.get_coin(&coin).await?;
-            let (amount, count) = data
-                .entry((coin.coin_type, coin.locked_until_epoch))
-                .or_default();
-            *amount += coin.balance as u128;
-            *count += 1;
+            let balance = balances.entry(coin.coin_type.clone()).or_insert(Balance {
+                coin_type: coin.coin_type,
+                coin_object_count: 0,
+                total_balance: 0,
+                locked_balance: Default::default(),
+            });
+            if let Some(lock) = coin.locked_until_epoch {
+                *balance.locked_balance.entry(lock).or_default() += coin.balance as u128
+            } else {
+                balance.total_balance += coin.balance as u128;
+            }
+            balance.coin_object_count += 1;
         }
 
-        Ok(data
-            .into_iter()
-            .map(
-                |((coin_type, locked_until_epoch), (total_balance, coin_object_count))| Balance {
-                    coin_type,
-                    coin_object_count,
-                    total_balance,
-                    locked_until_epoch,
-                },
-            )
-            .collect())
+        Ok(balances.into_values().collect())
     }
 
     async fn get_coin_metadata(&self, coin_type: String) -> RpcResult<SuiCoinMetadata> {

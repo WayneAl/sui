@@ -4,7 +4,7 @@
 /// This file contain response types used by RPC, most of the types mirrors it's internal type counterparts.
 /// These mirrored types allow us to optimise the JSON serde without impacting the internal types, which are optimise for storage.
 ///
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::fmt::Write;
 use std::fmt::{Display, Formatter};
@@ -75,7 +75,7 @@ pub struct Balance {
     pub coin_type: String,
     pub coin_object_count: usize,
     pub total_balance: u128,
-    pub locked_until_epoch: Option<EpochId>,
+    pub locked_balance: HashMap<EpochId, u128>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]

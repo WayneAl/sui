@@ -741,11 +741,7 @@ async fn test_get_fullnode_events() -> Result<(), anyhow::Error> {
 
 #[tokio::test]
 async fn test_locked_sui() -> Result<(), anyhow::Error> {
-    let port = get_available_port();
-    let cluster = TestClusterBuilder::new()
-        .set_fullnode_rpc_port(port)
-        .build()
-        .await?;
+    let cluster = TestClusterBuilder::new().build().await?;
 
     let http_client = cluster.rpc_client();
     let address = cluster.accounts.first().unwrap();
@@ -754,7 +750,7 @@ async fn test_locked_sui() -> Result<(), anyhow::Error> {
     assert_eq!(5, objects.len());
     // verify coins and balance before test
     let coins: CoinPage = http_client.get_coins(*address, None, None, None).await?;
-    let balance: Vec<Balance> = http_client.get_balances(*address, None).await?;
+    let balance: Vec<Balance> = http_client.get_all_balances(*address).await?;
 
     assert_eq!(5, coins.data.len());
     for coin in &coins.data {
@@ -762,7 +758,7 @@ async fn test_locked_sui() -> Result<(), anyhow::Error> {
     }
 
     assert_eq!(1, balance.len());
-    assert!(balance[0].locked_until_epoch.is_none());
+    assert!(balance[0].locked_balance.is_empty());
 
     // lock one coin
     let transaction_bytes: TransactionBytes = http_client
@@ -795,32 +791,22 @@ async fn test_locked_sui() -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let balance: Vec<Balance> = http_client.get_balances(*address, None).await?;
+    let balances: Vec<Balance> = http_client.get_all_balances(*address).await?;
 
-    assert_eq!(2, balance.len());
-    let locked_balance = balance
-        .iter()
-        .find(|balance| balance.locked_until_epoch.is_some())
-        .unwrap();
-    let balance = balance
-        .iter()
-        .find(|balance| balance.locked_until_epoch.is_none())
-        .unwrap();
+    assert_eq!(1, balance.len());
+
+    let balance = balances.first().unwrap();
 
     assert_eq!(4, balance.coin_object_count);
-    assert_eq!(1, locked_balance.coin_object_count);
-    assert_eq!(Some(20), locked_balance.locked_until_epoch);
+    assert_eq!(1, balance.locked_balance.len());
+    assert!(balance.locked_balance.contains_key(&20));
 
     Ok(())
 }
 
 #[tokio::test]
 async fn test_delegation() -> Result<(), anyhow::Error> {
-    let port = get_available_port();
-    let cluster = TestClusterBuilder::new()
-        .set_fullnode_rpc_port(port)
-        .build()
-        .await?;
+    let cluster = TestClusterBuilder::new().build().await?;
 
     let http_client = cluster.rpc_client();
     let address = cluster.accounts.first().unwrap();
@@ -879,11 +865,7 @@ async fn test_delegation() -> Result<(), anyhow::Error> {
 
 #[tokio::test]
 async fn test_delegation_with_locked_sui() -> Result<(), anyhow::Error> {
-    let port = get_available_port();
-    let cluster = TestClusterBuilder::new()
-        .set_fullnode_rpc_port(port)
-        .build()
-        .await?;
+    let cluster = TestClusterBuilder::new().build().await?;
 
     let http_client = cluster.rpc_client();
     let address = cluster.accounts.first().unwrap();
@@ -945,15 +927,13 @@ async fn test_delegation_with_locked_sui() -> Result<(), anyhow::Error> {
     let tx = to_sender_signed_transaction(transaction_bytes.to_data()?, keystore.get_key(address)?);
     let (tx_bytes, signature_bytes) = tx.to_tx_bytes_and_signature();
 
-    let response = http_client
+    http_client
         .execute_transaction_serialized_sig(
             tx_bytes,
             signature_bytes,
             ExecuteTransactionRequestType::WaitForLocalExecution,
         )
         .await?;
-
-    println!("{:?}", response);
 
     // Check StakedSui object
     let staked_sui: Vec<StakedSui> = http_client.get_staked_sui(*address).await?;
@@ -971,11 +951,7 @@ async fn test_delegation_with_locked_sui() -> Result<(), anyhow::Error> {
 
 #[tokio::test]
 async fn test_next_epoch_validators() -> Result<(), anyhow::Error> {
-    let port = get_available_port();
-    let cluster = TestClusterBuilder::new()
-        .set_fullnode_rpc_port(port)
-        .build()
-        .await?;
+    let cluster = TestClusterBuilder::new().build().await?;
 
     let http_client = cluster.rpc_client();
     let address = cluster.accounts.first().unwrap();
