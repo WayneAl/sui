@@ -13,7 +13,7 @@ use sui_json_rpc_types::{
     GetPastObjectDataResponse, GetRawObjectDataResponse, MoveFunctionArgType,
     RPCTransactionRequestParams, SuiCoinMetadata, SuiEventEnvelope, SuiEventFilter,
     SuiExecuteTransactionResponse, SuiMoveNormalizedFunction, SuiMoveNormalizedModule,
-    SuiMoveNormalizedStruct, SuiObjectInfo, SuiTBlsSignObjectCreationEpoch,
+    SuiMoveNormalizedStruct, SuiObjectInfo, SuiTBlsSignObjectCommitmentType,
     SuiTBlsSignRandomnessObjectResponse, SuiTransactionAuthSignersResponse, SuiTransactionEffects,
     SuiTransactionFilter, SuiTransactionResponse, SuiTypeTag, TransactionBytes, TransactionsPage,
 };
@@ -510,8 +510,8 @@ pub trait ThresholdBlsApi {
         &self,
         /// The object ID.
         object_id: ObjectID,
-        /// The epoch in which the object was created if it was in an old epoch, or the effects certificate if it was the current epoch (to verify that the object was committed).
-        object_creation_epoch: SuiTBlsSignObjectCreationEpoch,
+        /// The way in which the commitment on the object creation should be verified.
+        commitment_type: SuiTBlsSignObjectCommitmentType,
     ) -> RpcResult<SuiTBlsSignRandomnessObjectResponse>;
 }
 
