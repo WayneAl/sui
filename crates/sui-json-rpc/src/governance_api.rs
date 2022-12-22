@@ -62,7 +62,7 @@ impl GovernanceReadApiServer for GovernanceReadApi {
                     delegation_status: delegation
                         .get(&id)
                         .cloned()
-                        .map_or(DelegationStatus::Pending, |d| DelegationStatus::Active(d)),
+                        .map_or(DelegationStatus::Pending, DelegationStatus::Active),
                 }
             })
             .collect())
