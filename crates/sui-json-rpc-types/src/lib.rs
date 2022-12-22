@@ -1969,6 +1969,7 @@ pub struct DevInspectResults {
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename = "SuiExecutionResult", rename_all = "camelCase")]
 pub struct SuiExecutionResult {
     /// The value of any arguments that were mutably borrowed.
     /// Non-mut borrowed values are not included

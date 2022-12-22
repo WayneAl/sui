@@ -6,11 +6,15 @@ use crate::SuiRpcModule;
 use async_trait::async_trait;
 use jsonrpsee::core::RpcResult;
 use std::sync::Arc;
+use sui_adapter::execution_mode;
 use sui_core::authority::AuthorityState;
 use sui_json_rpc_types::{GetRawObjectDataResponse, SuiObjectInfo, SuiTypeTag, TransactionBytes};
 use sui_open_rpc::Module;
 use sui_transaction_builder::{DataReader, TransactionBuilder};
-use sui_types::base_types::{ObjectID, SuiAddress};
+use sui_types::{
+    base_types::{ObjectID, SuiAddress},
+    messages::TransactionData,
+};
 
 use fastcrypto::encoding::Base64;
 use jsonrpsee::RpcModule;
@@ -213,20 +217,36 @@ impl RpcTransactionBuilderServer for FullNodeTransactionBuilderApi {
         rpc_arguments: Vec<SuiJsonValue>,
         gas: Option<ObjectID>,
         gas_budget: u64,
+        mode: Option<String>,
     ) -> RpcResult<TransactionBytes> {
-        let data = self
-            .builder
-            .move_call(
-                signer,
-                package_object_id,
-                &module,
-                &function,
-                type_arguments,
-                rpc_arguments,
-                gas,
-                gas_budget,
-            )
-            .await?;
+        let mode_str = mode.unwrap_or_else(|| "Normal".to_string());
+        let data: TransactionData = if mode_str == *"DevInspect" {
+            self.builder
+                .move_call::<execution_mode::DevInspect>(
+                    signer,
+                    package_object_id,
+                    &module,
+                    &function,
+                    type_arguments,
+                    rpc_arguments,
+                    gas,
+                    gas_budget,
+                )
+                .await?
+        } else {
+            self.builder
+                .move_call::<execution_mode::Normal>(
+                    signer,
+                    package_object_id,
+                    &module,
+                    &function,
+                    type_arguments,
+                    rpc_arguments,
+                    gas,
+                    gas_budget,
+                )
+                .await?
+        };
         Ok(TransactionBytes::from_data(data)?)
     }
 
@@ -239,7 +259,7 @@ impl RpcTransactionBuilderServer for FullNodeTransactionBuilderApi {
     ) -> RpcResult<TransactionBytes> {
         let data = self
             .builder
-            .batch_transaction(signer, params, gas, gas_budget)
+            .batch_transaction::<execution_mode::DevInspect>(signer, params, gas, gas_budget)
             .await?;
         Ok(TransactionBytes::from_data(data)?)
     }

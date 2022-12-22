@@ -9,7 +9,7 @@ use sui_types::sui_system_state::SuiSystemState;
 use fastcrypto::encoding::Base64;
 use sui_json::SuiJsonValue;
 use sui_json_rpc_types::{
-    Balance, CoinPage, DynamicFieldPage, EventPage, GetObjectDataResponse,
+    Balance, CoinPage, DevInspectResults, DynamicFieldPage, EventPage, GetObjectDataResponse,
     GetPastObjectDataResponse, GetRawObjectDataResponse, MoveFunctionArgType,
     RPCTransactionRequestParams, SuiCoinMetadata, SuiEventEnvelope, SuiEventFilter,
     SuiExecuteTransactionResponse, SuiMoveNormalizedFunction, SuiMoveNormalizedModule,
@@ -181,6 +181,13 @@ pub trait RpcReadApi {
 #[open_rpc(namespace = "sui", tag = "Full Node API")]
 #[rpc(server, client, namespace = "sui")]
 pub trait RpcFullNodeReadApi {
+    /// Return dev-inpsect results of the transaction, including both the transaction
+    /// effects and return values of the transaction.
+    #[method(name = "devInspectTransaction")]
+    async fn dev_inspect_transaction(&self, tx_bytes: Base64) -> RpcResult<DevInspectResults>;
+
+    /// Return transaction execution effects including the gas cost summary,
+    /// while the effects are not committed to the chain.
     #[method(name = "dryRunTransaction")]
     async fn dry_run_transaction(&self, tx_bytes: Base64) -> RpcResult<SuiTransactionEffects>;
 
@@ -388,6 +395,8 @@ pub trait RpcTransactionBuilder {
         gas: Option<ObjectID>,
         /// the gas budget, the transaction will fail if the gas cost exceed the budget
         gas_budget: u64,
+        // Whether this is a regular transaction or a Dev Inspect Transaction
+        execution_mode: Option<String>,
     ) -> RpcResult<TransactionBytes>;
 
     /// Create an unsigned transaction to publish Move module.
