@@ -24,7 +24,7 @@ use sui_types::batch::TxSequenceNumber;
 use sui_types::committee::EpochId;
 use sui_types::crypto::SignatureScheme;
 use sui_types::event::EventID;
-use sui_types::governance::{Delegation, PendingDelegation, StakedSui};
+use sui_types::governance::DelegatedStake;
 use sui_types::messages::CommitteeInfoResponse;
 use sui_types::messages::ExecuteTransactionRequestType;
 use sui_types::query::{EventQuery, TransactionQuery};
@@ -260,22 +260,13 @@ pub trait RpcFullNodeReadApi {
 #[open_rpc(namespace = "sui", tag = "Governance Read API")]
 #[rpc(server, client, namespace = "sui")]
 pub trait GovernanceReadApi {
-    /// Return all [StakedSui] owned by the `owner` address.
-    #[method(name = "getStakedSui")]
-    async fn get_staked_sui(&self, owner: SuiAddress) -> RpcResult<Vec<StakedSui>>;
-
-    /// Return all [Delegation] owned by the `owner` address.
-    #[method(name = "getDelegations")]
-    async fn get_delegations(&self, owner: SuiAddress) -> RpcResult<Vec<Delegation>>;
-
-    /// Return all [Delegation] owned by the `owner` address.
-    #[method(name = "getPendingDelegations")]
-    async fn get_pending_delegations(&self, owner: SuiAddress)
-        -> RpcResult<Vec<PendingDelegation>>;
+    /// Return all [DelegatedStake].
+    #[method(name = "getDelegatedStakes")]
+    async fn get_delegated_stakes(&self, owner: SuiAddress) -> RpcResult<Vec<DelegatedStake>>;
 
     /// Return all validators scheduled for next epoch.
-    #[method(name = "nextEpochValidators")]
-    async fn next_epoch_validators(&self) -> RpcResult<Vec<ValidatorMetadata>>;
+    #[method(name = "activeValidators")]
+    async fn active_validators(&self) -> RpcResult<Vec<ValidatorMetadata>>;
 
     /// Return the committee information for the asked `epoch`.
     #[method(name = "getCommitteeInfo")]
